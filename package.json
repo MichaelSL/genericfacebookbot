@@ -1,12 +1,5 @@
 {
     "dependencies": {
         "async-request": "^1.2.0"
-    },
-    "devDependencies": {
-        "gulp": "^3.9.1",
-        "gulp-clean": "^0.4.0",
-        "gulp-zip": "^4.1.0",
-        "merge-stream": "^1.0.1",
-        "yargs": "^11.0.0"
     }
 }
