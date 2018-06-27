@@ -372,7 +372,7 @@ exports.handler = async function(event, context, callback) {
 
       await callSendAPI(messageData);
     } else {
-      next.apply(this, [recipientId, ...args]);
+      await next.apply(this, [recipientId, ...args]);
     }
   }
 
