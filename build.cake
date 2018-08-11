@@ -45,10 +45,17 @@ Task("InstallNpmProd")
 Task("ZipLambdaCode")
     .Does(() =>
 {
+    var archiveName = "generic-facebook-bot.zip";
+
+    if (FileExists(archiveName))
+    {
+        DeleteFile(archiveName);
+    }
+
     var nodeModules = System.IO.Directory.GetFiles("node_modules", "*", System.IO.SearchOption.AllDirectories);
     var filesToZip = new List<string>(nodeModules);
     filesToZip.Add("app.js");
-    Zip("./", "generic-facebook-bot.zip", filesToZip.ToArray());
+    Zip("./", archiveName, filesToZip.ToArray());
 });
 
 RunTarget(target);

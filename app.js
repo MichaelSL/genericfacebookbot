@@ -1,6 +1,19 @@
 'use strict';
 
 exports.handler = async function(event, context, callback) {
+
+  const WORKING_HOURS_REQUEST = "WORKING_HOURS_REQUEST";
+  const NEAREST_LOCATION_REQUEST = "NEAREST_LOCATION_REQUEST";
+  const SCHEDULE_TOUR_REQUEST = "SCHEDULE_TOUR_REQUEST";
+  const PARENT_POLICY_REQUEST = "PARENT_POLICY_REQUEST";
+  const CALL_REQUEST = "CALL_REQUEST";
+  const PAY_REQUEST = "PAY_REQUEST";
+
+  const CHILDCARE_NUMBER = process.env.SETTINGS_CHILDCARE_NUMBER;
+  const CHILDCARE_ADDRESS = process.env.SETTINGS_CHILDCARE_ADDRESS || "No address available :(";
+  const CHILDCARE_MAP_STATIC = process.env.SETTINGS_CHILDCARE_MAP_STATIC;
+  const CHILDCARE_MAP_LINK = process.env.SETTINGS_CHILDCARE_MAP_LINK;
+
   const request = require('async-request');
   const crypto = require('crypto');
   // App Secret can be retrieved from the App Dashboard
@@ -197,7 +210,7 @@ exports.handler = async function(event, context, callback) {
       switch (messageText.replace(/[^\w\s]/gi, '').trim().toLowerCase()) {
         case 'hello':
         case 'hi':
-          await sendHiMessage(senderID);
+          await sendMainMenuMessage(senderID);
           break;
 
         case 'image':
@@ -253,7 +266,7 @@ exports.handler = async function(event, context, callback) {
           break;
 
         default:
-          await sendTextMessage(senderID, messageText);
+          await sendMainMenuMessage(senderID);
       }
     } else if (messageAttachments) {
       await sendTextMessage(senderID, "Message with attachment received");
@@ -299,6 +312,9 @@ exports.handler = async function(event, context, callback) {
     var recipientID = event.recipient.id;
     var timeOfPostback = event.timestamp;
 
+    await sendReadReceipt(recipientID);
+    await sendTypingOn(recipientID);
+
     // The 'payload' param is a developer-defined field which is set in a postback
     // button for Structured Messages.
     var payload = event.postback.payload;
@@ -306,9 +322,27 @@ exports.handler = async function(event, context, callback) {
     console.log("Received postback for user %d and page %d with payload '%s' " +
       "at %d", senderID, recipientID, payload, timeOfPostback);
 
-    // When a postback is called, we'll send a message back to the sender to
-    // let them know it was successful
-    await sendTextMessage(senderID, "Postback called");
+    await sendTypingOff(recipientID);
+
+    switch (payload){
+      case WORKING_HOURS_REQUEST:
+      await sendTextMessage(senderID, "Mon-Fri: 7AM - 6PM;");
+      break;
+      case NEAREST_LOCATION_REQUEST:
+      await sendChildcareMap(senderID);
+      break;
+      case PARENT_POLICY_REQUEST:
+      await sendFileMessage(senderID);
+      break;
+      case PAY_REQUEST:
+      await sendTextMessage(senderID, "PayPal or Stripe account must be connected first.");
+      break;
+      default:
+        // When a postback is called, we'll send a message back to the sender to
+        // let them know it was successful
+        await sendTextMessage(senderID, "Postback called");
+      break;
+    }
   }
 
   /*
@@ -375,6 +409,111 @@ exports.handler = async function(event, context, callback) {
       await next.apply(this, [recipientId, ...args]);
     }
   }
+
+  /*
+  * Custom functions
+  * 
+  */
+
+  async function sendMainMenuMessage(recipientId) {
+    var messageData = {
+      recipient: {
+        id: recipientId
+      },
+      message: {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "generic",
+            elements: [{
+              title: "Members actions",
+              image_url: SERVER_URL + "/assets/if_icon_43_one_finger_swipe_horizontally_329372.png",
+              buttons: [{
+                type: "phone_number",
+                title: "Call...",
+                payload: CHILDCARE_NUMBER
+              },
+              {
+                type: "postback",
+                title: "Pay",
+                payload: PAY_REQUEST
+              }]
+            },
+            {
+              title: "Info",
+              image_url: SERVER_URL + "/assets/if_icon_43_one_finger_swipe_horizontally_329372.png",
+              buttons:[
+              {
+                type: "postback",
+                title: "Nearest locations",
+                payload: NEAREST_LOCATION_REQUEST
+              },
+              {
+                type: "postback",
+                title: "Working hours",
+                payload: WORKING_HOURS_REQUEST
+              },
+              {
+                type: "phone_number",
+                title: "Schedule a tour",
+                payload: CHILDCARE_NUMBER
+              }]
+            },
+            {
+              title: "Data",
+              image_url: SERVER_URL + "/assets/if_icon_43_one_finger_swipe_horizontally_329372.png",
+              buttons:[{
+                type: "postback",
+                title: "Parent policy handbook",
+                payload: PARENT_POLICY_REQUEST
+              }]
+            }]
+          }
+        }
+      }
+    };
+
+    await callSendAPI(messageData);
+  }
+
+  async function sendChildcareMap(recipientId){    
+    var messageData = {
+      recipient: {
+        id: recipientId
+      },
+      message: {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "generic",
+            "elements": [{
+              "title": 'Nearest childcare',
+              "subtitle": CHILDCARE_ADDRESS,
+              "item_url": CHILDCARE_MAP_STATIC,
+              "image_url": CHILDCARE_MAP_LINK
+            }]
+          }
+        }
+      }
+    }
+    await callSendAPI(messageData);
+  }
+
+  /*
+  {
+              type: "web_url",
+              url: "https://www.oculus.com/en-us/rift/",
+              title: "Open Web URL"
+            }, {
+              type: "postback",
+              title: "Trigger Postback",
+              payload: "DEVELOPER_DEFINED_PAYLOAD"
+            }, {
+              type: "phone_number",
+              title: "Call Phone Number",
+              payload: "+16505551234"
+            }
+  */
 
   async function sendHiMessage(recipientId) {
     var messageData = {
@@ -496,7 +635,7 @@ exports.handler = async function(event, context, callback) {
         attachment: {
           type: "file",
           payload: {
-            url: SERVER_URL + "/assets/test.txt"
+            url: SERVER_URL + "/assets/lorem_ipsum.pdf"
           }
         }
       }
